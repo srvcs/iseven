@@ -1,48 +1,65 @@
 # srvcs-iseven
 
-The parity primitive of the srvcs.cloud distributed standard library.
+## Name
 
-Its single concern: **is the number even?** It does not validate input itself —
-it delegates "is this a number" to [`srvcs-isnumber`](https://github.com/srvcs/isnumber)
-over HTTP, the single source of truth for that question. Parity is then computed
-on the integer (`n % 2 == 0`).
+| Field | Value |
+| --- | --- |
+| Service | `srvcs-iseven` |
+| Slug | `iseven` |
+| Repository | `srvcs/iseven` |
+| Package | `srvcs-iseven` |
+| Kind | `primitive` |
 
-If `srvcs-isnumber` is unreachable, `srvcs-iseven` reports itself **degraded
-(503)** rather than guessing.
+## Function
+
+parity: is the number even
+
+## Dependencies
+
+| Dependency | Repository |
+| --- | --- |
+| `srvcs-isnumber` | [srvcs/isnumber](https://github.com/srvcs/isnumber) |
 
 ## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/` | Service identity, concern, and dependency list |
-| `POST` | `/` | Is `value` even? |
-| `GET` | `/healthz` `/readyz` `/metrics` `/openapi.json` | srvcs service standard surface |
+| `GET` | `/` | Service identity |
+| `POST` | `/` | Evaluate the service function |
+| `GET` | `/healthz` | Liveness probe |
+| `GET` | `/readyz` | Readiness probe |
+| `GET` | `/metrics` | Prometheus metrics |
+| `GET` | `/openapi.json` | OpenAPI document |
 
-```sh
-curl -s -X POST localhost:8080/ -H 'content-type: application/json' -d '{"value": 4}'
-# {"value":4,"result":true}
-```
+## Inputs
 
-Responses:
+| Name | Type | Required |
+| --- | --- | --- |
+| `value` | `json` | yes |
 
-- `200 {"value": n, "result": bool}` — evaluated.
-- `422` — the value is not a number (per `srvcs-isnumber`) or not an integer.
-- `503` — a dependency is unavailable.
+## Outputs
 
-## Dependencies
-
-- [`srvcs-isnumber`](https://github.com/srvcs/isnumber) — input validation.
+| Name | Type |
+| --- | --- |
+| `value` | `json` |
+| `result` | `boolean` |
 
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SRVCS_BIND_ADDR` | `0.0.0.0:8080` | Bind address |
-| `SRVCS_ISNUMBER_URL` | `http://127.0.0.1:8081` | Base URL of `srvcs-isnumber` |
 | `SRVCS_ENV` | `development` | Environment label for logs |
 | `RUST_LOG` | `info,tower_http=info` | Tracing filter |
+| `SRVCS_ISNUMBER_URL` | `http://127.0.0.1:8081` | Base URL for srvcs-isnumber |
 
-## Local checks
+## Error Behavior
+
+- `422` means the request could not be evaluated for the documented input shape.
+- `503` means a required dependency was unavailable or returned an unexpected response.
+- Dependency validation errors are forwarded when this service delegates validation.
+
+## Local Checks
 
 ```sh
 cargo fmt --check
@@ -50,9 +67,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-Orchestration tests stand up a mock `srvcs-isnumber` in-process, so the suite
-runs without the rest of the fleet. See
-[`srvcs/platform`](https://github.com/srvcs/platform) for the shared standard.
+See the [srvcs service standard](https://github.com/srvcs/platform/blob/main/STANDARD.md) for the full operational contract.
 
-> Note: the `cargoHash` in `flake.nix` is inherited from the template and must be
-> refreshed with a `nix build` before the Nix gates pass.
+## Metadata
+
+Machine-readable service metadata lives in `srvcs.yaml`. Keep it aligned with this README when the service contract changes.
